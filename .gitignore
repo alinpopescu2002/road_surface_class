@@ -1,0 +1,27 @@
+# Mediul virtual
+.venv/
+venv/
+env/
+
+# Setul de date NU se urcă pe GitHub (cerință)
+data/*
+!data/README.md
+
+# Checkpoint-uri și rezultate mari
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+runs/
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# PyCharm (setările personale)
+.idea/
+
+# Sistem
+.DS_Store
+Thumbs.db

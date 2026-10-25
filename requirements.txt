@@ -1,0 +1,9 @@
+# Python 3.11
+# Versiunile se fixează după instalare cu: pip freeze > requirements.txt
+torch
+torchvision
+numpy
+matplotlib
+scikit-learn
+pillow
+tqdm
