@@ -1,20 +1,4 @@
-"""Încărcarea setului de date: Dataset, DataLoader, transformări și împărțirea train/val/test (70/15/15).
-
-Structura așteptată a datelor (un folder per clasă):
-
-    data/raw/
-    ├── good_asphalt/     *.jpg / *.png ...
-    ├── potholes/
-    ├── cracks/
-    └── unpaved_gravel/
-
-Împărțirea este stratificată (fiecare split păstrează proporția claselor) și reproductibilă
-(seed fix). Lista fișierelor din fiecare split se salvează în `data/splits.json`, astfel încât
-train / val / test rămân aceleași de la o rulare la alta și nu există scurgeri între seturi.
-
-Verificare rapidă:
-    python -m src.dataset --data-dir data/raw
-"""
+"""Încărcarea setului de date: Dataset, DataLoader, transformări și împărțirea train/val/test (70/15/15)."""
 
 import argparse
 import json
@@ -32,16 +16,13 @@ CLASSES = ["good_asphalt", "potholes", "cracks", "unpaved_gravel"]
 CLASS_TO_IDX = {name: i for i, name in enumerate(CLASSES)}
 IMG_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 
-# Statisticile ImageNet pentru normalizare (valori standard pentru imagini RGB naturale)
+# statistici ImageNet
 MEAN = (0.485, 0.456, 0.406)
 STD = (0.229, 0.224, 0.225)
 
 DEFAULT_DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "raw"
 
 
-# --------------------------------------------------------------------------------------
-# Citirea și împărțirea setului de date
-# --------------------------------------------------------------------------------------
 def scan_dataset(root):
     """Returnează lista (cale_imagine, eticheta) pentru toate imaginile din `root/<clasa>/`."""
     root = Path(root)
@@ -65,11 +46,9 @@ def split_dataset(samples, val_ratio=0.15, test_ratio=0.15, seed=42):
     paths = [s[0] for s in samples]
     labels = [s[1] for s in samples]
 
-    # 1) separăm testul
     p_rest, p_test, y_rest, y_test = train_test_split(
         paths, labels, test_size=test_ratio, stratify=labels, random_state=seed
     )
-    # 2) din rest separăm validarea (proporția se recalculează relativ la rest)
     val_rel = val_ratio / (1.0 - test_ratio)
     p_train, p_val, y_train, y_val = train_test_split(
         p_rest, y_rest, test_size=val_rel, stratify=y_rest, random_state=seed
@@ -82,7 +61,6 @@ def split_dataset(samples, val_ratio=0.15, test_ratio=0.15, seed=42):
 
 
 def load_or_create_splits(root, split_file=None, seed=42, overwrite=False):
-    """Încarcă split-urile din JSON dacă există, altfel le creează și le salvează."""
     root = Path(root)
     split_file = Path(split_file) if split_file else root.parent / "splits.json"
 
@@ -93,7 +71,6 @@ def load_or_create_splits(root, split_file=None, seed=42, overwrite=False):
 
     splits = split_dataset(scan_dataset(root), seed=seed)
 
-    # verificare: niciun fișier nu apare în două split-uri
     sets = {k: {p for p, _ in v} for k, v in splits.items()}
     assert not (sets["train"] & sets["val"] or sets["train"] & sets["test"] or sets["val"] & sets["test"])
 
@@ -103,16 +80,13 @@ def load_or_create_splits(root, split_file=None, seed=42, overwrite=False):
     return splits
 
 
-# --------------------------------------------------------------------------------------
-# Transformări (pre-procesare + augmentare)
-# --------------------------------------------------------------------------------------
 def get_transforms(img_size=224):
     """Transformări pentru antrenare (cu augmentare) și pentru evaluare (deterministe)."""
     train_tf = transforms.Compose([
         transforms.RandomResizedCrop(img_size, scale=(0.7, 1.0), ratio=(0.75, 1.33)),
-        transforms.RandomHorizontalFlip(),          # drumul arată la fel oglindit stânga-dreapta
-        transforms.RandomRotation(10),              # înclinări mici ale camerei
-        transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2, hue=0.02),  # lumină / vreme
+        transforms.RandomHorizontalFlip(),        
+        transforms.RandomRotation(10),            
+        transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.2, hue=0.02),
         transforms.ToTensor(),
         transforms.Normalize(MEAN, STD),
     ])
@@ -125,9 +99,6 @@ def get_transforms(img_size=224):
     return train_tf, eval_tf
 
 
-# --------------------------------------------------------------------------------------
-# Dataset + DataLoader
-# --------------------------------------------------------------------------------------
 class RoadSurfaceDataset(Dataset):
     """Dataset PyTorch pentru imaginile de carosabil."""
 
@@ -177,9 +148,6 @@ def get_dataloaders(root=DEFAULT_DATA_DIR, batch_size=32, img_size=224, num_work
     return loaders, datasets
 
 
-# --------------------------------------------------------------------------------------
-# Verificare rapidă: python -m src.dataset
-# --------------------------------------------------------------------------------------
 def _denormalize(x):
     mean = torch.tensor(MEAN).view(1, 3, 1, 1)
     std = torch.tensor(STD).view(1, 3, 1, 1)
@@ -187,7 +155,7 @@ def _denormalize(x):
 
 
 def main():
-    sys.stdout.reconfigure(encoding="utf-8")  # consola Windows (cp1252) nu afișează diacriticele
+    sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="Verificarea Dataset-ului și a DataLoader-ului")
     parser.add_argument("--data-dir", default=str(DEFAULT_DATA_DIR))
     parser.add_argument("--batch-size", type=int, default=16)

@@ -1,7 +1,4 @@
-"""Citirea selectivă a unei arhive ZIP aflate pe un server HTTP (prin cereri Range).
-
-Permite extragerea doar a fișierelor necesare dintr-o arhivă de mai mulți GB, fără a o descărca integral.
-"""
+"""Citirea unei arhive ZIP de pe un server HTTP, fără descărcarea ei completă."""
 
 import io
 import time
@@ -11,8 +8,6 @@ USER_AGENT = "road-surface-class-dataset-prep"
 
 
 class HTTPRangeFile(io.RawIOBase):
-    """Obiect de tip fișier (read-only, seekable) peste un URL care suportă HTTP Range."""
-
     def __init__(self, url, block_size=1 << 20):
         self.url = url
         self.block_size = block_size
@@ -28,7 +23,7 @@ class HTTPRangeFile(io.RawIOBase):
                 )
                 with urllib.request.urlopen(req, timeout=60) as r:
                     if r.status != 206:
-                        raise IOError(f"Serverul nu a răspuns cu 206 (status {r.status})")
+                        raise IOError(f"Status neașteptat: {r.status}")
                     return r.read(), r.headers.get("Content-Range")
             except Exception:
                 if attempt == retries - 1:
@@ -72,7 +67,6 @@ class HTTPRangeFile(io.RawIOBase):
         n = min(n, self.size - self.pos)
         if n <= 0:
             return b""
-        # citiri mari: o singură cerere directă
         if n > 4 * self.block_size:
             data, _ = self._get(self.pos, self.pos + n - 1)
             self.pos += len(data)

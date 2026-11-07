@@ -1,19 +1,4 @@
-"""Construiește data/raw/<clasa>/ din sursele descărcate cu scripts/download_data.py.
-
-Maparea etichetelor RDD2022 (detecție) în clase de clasificare, per imagine:
-  * conține cel puțin o groapă (D40)                      -> potholes
-  * conține fisuri (D00 longitudinale, D10 transversale,
-    D20 tip „piele de crocodil”), dar nicio groapă         -> cracks
-  * nu are nicio adnotare                                   -> good_asphalt
-  * doar alte etichete (D43/D44 marcaje, D50 capace etc.)  -> ignorată
-Imaginile cu pietriș provin din RSCD (clasele dry-gravel și wet-gravel) -> unpaved_gravel.
-
-Se folosește doar partea `train` din RDD2022 (partea `test` nu are adnotări publice).
-Fiecare clasă se limitează la N imagini (eșantion aleator cu seed fix) pentru echilibru.
-
-Rulare (din rădăcina proiectului):
-    python scripts/prepare_data.py --per-class 1500
-"""
+"""Construiește data/raw/<clasa>/ din fișierele descărcate în data/downloads/."""
 
 import argparse
 import random
@@ -43,7 +28,6 @@ def rdd_class(labels):
 
 
 def collect_rdd():
-    """Returnează {clasa: [(zip, cale_imagine_în_zip), ...]}."""
     groups = {"good_asphalt": [], "cracks": [], "potholes": []}
     for country in RDD_COUNTRIES:
         zf = zipfile.ZipFile(DOWNLOADS / f"{country}.zip")
@@ -76,7 +60,7 @@ def main():
         out.mkdir(parents=True)
         for zf, name in items:
             (out / Path(name).name).write_bytes(zf.read(name))
-        print(f"{cls:15s}: {len(items)} imagini (RDD2022)")
+        print(f"{cls:15s}: {len(items)}")
 
     gravel = sorted((DOWNLOADS / "rscd_gravel").glob("*.jpg"))
     rng.shuffle(gravel)
@@ -85,9 +69,8 @@ def main():
     out.mkdir(parents=True)
     for p in gravel:
         shutil.copy2(p, out / p.name)
-    print(f"{'unpaved_gravel':15s}: {len(gravel)} imagini (RSCD)")
+    print(f"{'unpaved_gravel':15s}: {len(gravel)}")
 
-    # split-urile vechi nu mai corespund -> se regenerează la prima rulare a src/dataset.py
     (RAW.parent / "splits.json").unlink(missing_ok=True)
 
 

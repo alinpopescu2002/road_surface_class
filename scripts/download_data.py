@@ -1,14 +1,4 @@
-"""Descărcarea surselor de date în data/downloads/ (doar părțile necesare din arhivele mari).
-
-Surse (ambele pe Figshare):
-  * RDD2022 – Road Damage Dataset (CC BY-SA 4.0), imagini dashcam cu defecte adnotate
-    https://figshare.com/articles/dataset/21431547  -> se descarcă doar subarhivele Czech.zip și India.zip (~0.8 GB)
-  * RSCD – Road Surface Classification Dataset
-    https://figshare.com/articles/dataset/20424582  -> se descarcă doar un eșantion de imagini cu pietriș
-
-Rulare (din rădăcina proiectului):
-    python scripts/download_data.py
-"""
+"""Descarcă RDD2022 (Czech, India) și un eșantion de imagini cu pietriș din RSCD în data/downloads/."""
 
 import json
 import random
@@ -42,21 +32,19 @@ def download_rdd():
     for country in RDD_COUNTRIES:
         dst = OUT / f"{country}.zip"
         if dst.exists() and zipfile.is_zipfile(dst):
-            print(f"[RDD] {country}.zip există deja")
             continue
         if zf is None:
             zf = zipfile.ZipFile(HTTPRangeFile(RDD_URL, block_size=32 << 20))
-        print(f"[RDD] descarc {country}.zip ...")
+        print(f"[RDD] {country}.zip")
         with zf.open(f"RDD2022/{country}.zip") as src, open(dst, "wb") as out:
             shutil.copyfileobj(src, out, 32 << 20)
 
 
-def _rscd_gravel_index():
-    """Lista imaginilor cu pietriș din RSCD (nume, offset, dimensiuni), citită din cuprinsul arhivei."""
+def rscd_gravel_index():
     index_file = OUT / "rscd_gravel_index.json"
     if index_file.exists():
         return json.loads(index_file.read_text())
-    print("[RSCD] citesc cuprinsul arhivei (~1M fișiere, durează câteva minute) ...")
+    print("[RSCD] citesc lista de fișiere")
     zf = zipfile.ZipFile(HTTPRangeFile(RSCD_URL, block_size=8 << 20))
     rows = [
         [i.filename, i.header_offset, i.compress_size, i.compress_type, i.file_size]
@@ -67,8 +55,7 @@ def _rscd_gravel_index():
     return rows
 
 
-def _fetch_member(row, out_dir):
-    """Descarcă un singur fișier din arhiva RSCD (antet local + date comprimate)."""
+def fetch_member(row, out_dir):
     name, offset, csize, ctype, size = row
     dst = out_dir / name.rsplit("/", 1)[1]
     if dst.exists():
@@ -89,8 +76,8 @@ def _fetch_member(row, out_dir):
             dst.write_bytes(data)
             time.sleep(0.2)
             return True
-        except urllib.error.HTTPError as ex:  # 429 = prea multe cereri -> așteptăm
-            time.sleep(min(60, 5 * (attempt + 1)) if ex.code == 429 else 2)
+        except urllib.error.HTTPError as ex:
+            time.sleep(min(60, 5 * (attempt + 1)) if ex.code == 429 else 2)  # 429 = prea multe cereri
         except Exception:
             time.sleep(2)
     print(f"[RSCD] eșec: {name}")
@@ -99,17 +86,16 @@ def _fetch_member(row, out_dir):
 
 def download_rscd_gravel():
     rows = [
-        r for r in _rscd_gravel_index()
+        r for r in rscd_gravel_index()
         if "/train/" in r[0] and ("dry-gravel" in r[0] or "wet-gravel" in r[0])
     ]
     random.Random(SEED).shuffle(rows)
     rows = rows[:RSCD_N_GRAVEL]
     out_dir = OUT / "rscd_gravel"
     out_dir.mkdir(parents=True, exist_ok=True)
-    print(f"[RSCD] descarc {len(rows)} imagini cu pietriș ...")
     with ThreadPoolExecutor(3) as ex:
-        ok = sum(ex.map(lambda r: _fetch_member(r, out_dir), rows))
-    print(f"[RSCD] {ok}/{len(rows)} imagini descărcate")
+        ok = sum(ex.map(lambda r: fetch_member(r, out_dir), rows))
+    print(f"[RSCD] {ok}/{len(rows)} imagini")
 
 
 if __name__ == "__main__":
