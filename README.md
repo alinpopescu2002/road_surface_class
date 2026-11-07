@@ -54,16 +54,52 @@ pip install -r requirements.txt
 
 ## Setul de date
 
-Setul de date nu este inclus în repository inca.
+Setul de date nu este inclus în repository (vezi `.gitignore`). Se obține din două surse publice:
+
+- [RDD2022](https://figshare.com/articles/dataset/21431547) (CC BY-SA 4.0): imagini dashcam din Cehia și India.
+  Adnotările de detecție se transformă în clase: groapă (D40) → `potholes`, doar fisuri (D00/D10/D20) → `cracks`,
+  fără adnotări → `good_asphalt`.
+- [RSCD](https://figshare.com/articles/dataset/20424582): eșantion aleator din clasele `dry-gravel` și `wet-gravel`
+  → `unpaved_gravel`.
+
+```bash
+python scripts/download_data.py              # descarcă doar părțile necesare (~0.8 GB) în data/downloads/
+python scripts/prepare_data.py --per-class 1500   # construiește data/raw/ (1500 imagini / clasă, seed 42)
+```
+
+Rezultatul este câte un folder per clasă:
+
+```
+data/raw/
+├── good_asphalt/
+├── potholes/
+├── cracks/
+└── unpaved_gravel/
+```
+
+La prima rulare, imaginile sunt împărțite stratificat 70/15/15 (seed 42), iar lista fișierelor din fiecare split se
+salvează în `data/splits.json`. Rulările următoare refolosesc aceeași împărțire.
 
 ## Rulare
 
-*O sa completez pe parcurs.*
+Verificarea Dataset-ului și a DataLoader-ului (afișează dimensiunea split-urilor și distribuția claselor, încarcă un
+batch și salvează un exemplu augmentat în `results/sample_batch.png`):
+
+```bash
+python -m src.dataset --data-dir data/raw
+```
+
+Din cod:
+
+```python
+from src.dataset import get_dataloaders
+loaders, datasets = get_dataloaders("data/raw", batch_size=32, img_size=224)
+```
 
 ## Status
 - [x] S3 – descrierea inițială a proiectului
 - [x] S4 – crearea repository-ului
-- [ ] S6 – setul de date și DataLoader-ul funcționale
+- [x] S6 – setul de date și DataLoader-ul funcționale
 - [ ] S9 – rularea end-to-end a modelului
 - [ ] S12 – augmentarea cu model generativ
 - [ ] S14 – prezentarea finală
