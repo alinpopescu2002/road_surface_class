@@ -1,9 +1,9 @@
-# Mediul virtual
+# venv
 .venv/
 venv/
 env/
 
-# Setul de date NU se urcă pe GitHub (cerință)
+#nu urc setul de date....
 data/*
 !data/README.md
 
@@ -19,7 +19,7 @@ __pycache__/
 *.py[cod]
 .ipynb_checkpoints/
 
-# PyCharm (setările personale)
+# PyCharh and Vs 
 .idea/
 
 # Sistem
